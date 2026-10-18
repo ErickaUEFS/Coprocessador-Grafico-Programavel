@@ -652,12 +652,16 @@ PATTERSON, D. A.; HENNESSY, J. L. Computer organization and design: the hardware
 
 INTEL CORPORATION. Intel 8087 Numeric Data Processor: User’s Manual. Disponível em: https://datasheets.chipdb.org/Intel/x86/808x/datashts/8087/205835-007.pdf.
 
+TANENBAUM, A. S.; WOODHULL, A. S. Operating systems: design and implementation. 3. ed. Pearson, 2006.
+
 PANTUZA, J. Organização e arquitetura de computadores: pipeline em processadores. Disponível em: https://blog.pantuza.com/artigos/organizacao-e-arquitetura-de-computadores-pipeline-em-processadores.
 
 FPGA TUTORIAL. How to write a basic Verilog Testbench. Disponível em: https://fpgatutorial.com/how-to-write-a-basic-verilog-testbench/.
 
 ## Colaboradores
 
-Ericka Almeida -
-Gustavo Leão -
-Felipe Queiroz -
+Ericka Almeida - ErickaUEFS
+
+Gustavo Leão - GustavolLeao
+
+Felipe Queiroz - felpsq
