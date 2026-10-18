@@ -54,6 +54,8 @@
     - [Movimentação de polígonos](#movimentação-de-polígonos)
     - [Cena com várias instruções executadas](#cena-com-várias-instruções-executadas)
 - [Conclusão](#conclusão)
+- [Referências](#referências)
+- [Colaboradores](#colaboradores)
 
 ## Introdução
 
@@ -644,3 +646,18 @@ Os resultados obtidos demonstraram o funcionamento do coprocessador gráfico e a
 
 Os testes de integração verificaram o envio e a leitura de instruções, enquanto os testes práticos demonstraram a seleção e movimentação de diferentes planos de fundo, a criação, configuração e movimentação de *sprites*, a renderização e movimentação de polígonos, a configuração de cores e o uso da sincronização vertical na saída VGA. Dessa forma, o projeto aplicou conceitos de arquitetura de computadores, comunicação entre processador e periféricos, Verilog, Assembly e integração entre *hardware* e *software*. Como melhorias futuras, destacam-se a ampliação da cobertura dos testes, a verificação de casos de concorrência na FIFO e a inclusão de novos recursos gráficos.
 
+## Referências
+
+PATTERSON, D. A.; HENNESSY, J. L. Computer organization and design: the hardware/software interface, ARM edition. 5. ed. Morgan Kaufmann, 2016.
+
+INTEL CORPORATION. Intel 8087 Numeric Data Processor: User’s Manual. Disponível em: https://datasheets.chipdb.org/Intel/x86/808x/datashts/8087/205835-007.pdf.
+
+PANTUZA, J. Organização e arquitetura de computadores: pipeline em processadores. Disponível em: https://blog.pantuza.com/artigos/organizacao-e-arquitetura-de-computadores-pipeline-em-processadores.
+
+FPGA TUTORIAL. How to write a basic Verilog Testbench. Disponível em: https://fpgatutorial.com/how-to-write-a-basic-verilog-testbench/.
+
+## Colaboradores
+
+Ericka Almeida -
+Gustavo Leão -
+Felipe Queiroz -
