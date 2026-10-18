@@ -660,8 +660,6 @@ FPGA TUTORIAL. How to write a basic Verilog Testbench. Disponível em: https://f
 
 ## Colaboradores
 
-Ericka Almeida - ErickaUEFS
-
-Gustavo Leão - GustavolLeao
-
-Felipe Queiroz - felpsq
+- **Ericka Almeida** — [ErickaUEFS](https://github.com/ErickaUEFS)
+- **Gustavo Leão** — [GustavolLeao](https://github.com/GustavolLeao)
+- **Felipe Queiroz** — [felpsq](https://github.com/felpsq)
