@@ -169,7 +169,7 @@ Os computadores possuem como um dos seus componentes principais o processador (C
 
 Para o desenvolvimento deste coprocessador, a arquitetura foi planejada com foco no paralelismo de hardware e na programabilidade. A CPU (ARM do HPS) não conhece os detalhes internos dos módulos gráficos: ela apenas envia instruções de 32 bits, definidas pela ISA do projeto. Cabe ao hardware buscar, decodificar e executar cada instrução, acionando o motor gráfico correspondente. A geração de imagens exige um sincronismo rigoroso com o monitor VGA. Por isso, o sistema opera com dois domínios de clock: um clock de 50 MHz para a fila de instruções, a unidade de controle, os motores gráficos e a escrita na memória de vídeo, e um clock de 25 MHz para a leitura contínua da memória de vídeo e o envio do sinal VGA.
 
-Esta seção acompanha o caminho percorrido por uma instrução, do software até a imagem exibida no monitor, e está organizada na seguinte ordem: (1) **Instruções**, com o formato e o conjunto de instruções da ISA; (2) **Caminho da Instrução até a Fila**, que descreve o trajeto do programa em C até a entrada da fila, passando pelo driver em Assembly ARM e pela interface MMIO; (3) **Fila de Instruções**, que armazena os comandos enviados pelo processador; (4) **Unidade de Busca**, que retira as instruções da fila e as entrega ao registrador de instrução; (5) **Unidade de Controle**, que decodifica as instruções e coordena a execução; (6) **Motores gráficos**, que executam as operações de plano de fundo, sprites e polígonos e compõem a imagem final; (7) **Simulação**, com os testes e a validação do projeto; e (8) **Referências**, com as fontes consultadas.
+Esta seção acompanha o caminho percorrido por uma instrução, desde sua chamada no programa em C até a imagem exibida no monitor. Inicialmente, são apresentados a ISA e a interface de software; em seguida, são descritos o envio das instruções, a interface MMIO, a FIFO, a Unidade de Busca, a Unidade de Controle, o Banco de Registradores e as adaptações dos motores gráficos. Por fim, são apresentados os testes, os resultados obtidos e as referências utilizadas.
 
 
 ### ISA e interface de software
@@ -649,8 +649,6 @@ Os testes de integração verificaram o envio e a leitura de instruções, enqua
 ## Referências
 
 PATTERSON, D. A.; HENNESSY, J. L. Computer organization and design: the hardware/software interface, ARM edition. 5. ed. Morgan Kaufmann, 2016.
-
-INTEL CORPORATION. Intel 8087 Numeric Data Processor: User’s Manual. Disponível em: https://datasheets.chipdb.org/Intel/x86/808x/datashts/8087/205835-007.pdf.
 
 TANENBAUM, A. S.; WOODHULL, A. S. Operating systems: design and implementation. 3. ed. Pearson, 2006.
 
