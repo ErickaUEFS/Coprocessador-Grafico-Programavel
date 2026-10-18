@@ -536,7 +536,7 @@ Além dos testes individuais, foram executados programas que combinam diferentes
 Esses testes combinam operações de criação, movimentação, alteração de cores e seleção do plano de fundo. A execução de múltiplos comandos em sequência permite observar a integração entre o programa em C, o driver ARM, a interface MMIO, a FIFO, a Unidade de Busca, a Unidade de Controle e os motores gráficos.
 
 
-![Resultado de um teste de movimentação do plano de fundo](docs/figuras/testes/teste_background.png)
+![Resultado de um teste de movimentação do plano de fundo](docs/figuras/testes/simulacao_teste_background_mover.gif)
 
 *Figura 3 — Resultado do teste de seleção e movimentação do plano de fundo.*
 
