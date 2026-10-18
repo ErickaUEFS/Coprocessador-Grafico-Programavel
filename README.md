@@ -494,15 +494,63 @@ Essa inicialização evita que estados anteriores ou valores residuais interfira
 
 Além disso, o tratamento de reset contribui para a previsibilidade do comportamento dos motores durante a integração e os testes em hardware.
 
-#### 7.7. Resultado das modificações
+## Testes e Resultados
 
-Com as adaptações realizadas, os motores gráficos passaram a operar como unidades funcionais subordinadas ao sequenciamento da Unidade de Controle.
+A validação do coprocessador foi organizada em dois testes diferentes: simulação funcional da comunicação entre a interface MMIO e a FIFO, e testes práticos das instruções gráficas por meio de programas em C executados no sistema ARM da placa DE1-SoC. A primeira etapa permitiu observar a transferência e o consumo das instruções, enquanto a segunda avaliou os efeitos dos comandos na saída VGA e cena final executada.
 
-A UC interpreta a instrução, seleciona o motor correspondente, disponibiliza os parâmetros e aguarda a confirmação de conclusão. Os motores, por sua vez, executam as operações e mantêm os atributos internos dos elementos gráficos.
+### 1. Simulação de integração entre MMIO e FIFO
 
-Essa divisão de responsabilidades permite que o software utilize os recursos gráficos por meio da ISA, sem precisar conhecer ou manipular diretamente os sinais internos de cada motor.
+A simulação foi realizada com o *testbench* `tb_integracao`, utilizando um clock de 50 MHz e duração total de 360 ns. O cenário inicial aplica o sinal de reset, após o qual são enviadas três palavras de 32 bits por meio dos sinais `avs_instrucao` e `avs_escrever`, com o endereço local `00` selecionado.
 
-A integração entre a Unidade de Controle, o Banco de Registradores e os motores gráficos constitui, portanto, uma das principais etapas da transformação do núcleo gráfico original em um coprocessador programável.
+Em seguida, são gerados dois pulsos em `unidade_ler`, simulando solicitações de consumo de instruções. Durante a simulação, foram observadas as transições dos indicadores da fila e o comportamento da saída `instrucao_saida`.
+
+O resultado registrado demonstra a entrada das instruções na FIFO e o avanço do ponteiro de leitura conforme as solicitações são atendidas. A saída acompanha a instrução localizada na posição indicada pelo ponteiro, permitindo observar a sequência dos comandos recebidos.
+
+A simulação documentada verifica, portanto, o caminho de escrita das instruções e seu consumo pela FIFO. O cenário apresentado não cobre o preenchimento das 16 posições, a leitura do registrador de estado pela MMIO nem todas as condições de concorrência entre escrita e leitura.
+
+**Evidência da simulação:**
+
+![Simulação de integração entre interface MMIO e FIFO](docs/figuras/testes/tb_integracao.png)
+
+*Figura 2 — Formas de onda da interface MMIO e da FIFO durante as operações de escrita e leitura.*
+
+### 2. Testes funcionais das instruções gráficas
+
+Os testes funcionais foram realizados por programas em C que utilizam as funções declaradas em `gpu_isa.h` e implementadas em `gpu_driver.S`. O driver monta as instruções da ISA de 32 bits e as envia pela MMIO, consultando o estado da fila antes de cada escrita.
+
+Os testes foram divididos entre chamadas individuais das instruções e cenas que combinam diferentes recursos gráficos.
+
+| Teste | Procedimento | Resultado observado |
+|---|---|---|
+| Seleção e movimentação do plano de fundo | Execução de `BG_TILE` e chamadas sucessivas de `BG_MOVER` nas quatro direções. | Verificação da seleção do plano de fundo e da alteração de seu posicionamento. |
+| Criação e configuração de *sprites* | Criação de 32 *sprites*, com testes de espelhamento horizontal e vertical e alteração da visibilidade. | Verificação da configuração dos elementos e dos atributos enviados à unidade funcional. |
+| Movimentação de *sprites* | Execução de `SPR_MOVER` em diferentes direções. | Verificação do deslocamento dos elementos na tela. |
+| Definição e movimentação de polígonos | Criação de retângulos e triângulos, alteração de cor e execução de `POLI_MOVER`. | Verificação da representação das figuras e da resposta aos comandos de movimentação. |
+| Configuração da paleta | Chamadas de `PALE_DEFINIR` para programar cores utilizadas nas cenas. | Verificação visual das cores configuradas nos elementos gráficos. |
+| Sincronização vertical | Chamadas de `ESPERA_VSYNC` antes de sequências de movimentação. | Verificação da utilização da instrução de sincronização durante os testes de animação. |
+
+### 3. Testes de integração das cenas gráficas
+
+Além dos testes individuais, foram executados programas que combinam diferentes instruções para gerar cenas animadas. Esses cenários exercitam a sequência de comandos enviada pelo ARM e a atuação sincronizada dos módulos do coprocessador.
+
+Esses testes combinam operações de criação, movimentação, alteração de cores e seleção do plano de fundo. A execução de múltiplos comandos em sequência permite observar a integração entre o programa em C, o driver ARM, a interface MMIO, a FIFO, a Unidade de Busca, a Unidade de Controle e os motores gráficos.
+
+
+![Resultado de um teste de movimentação do plano de fundo](docs/figuras/testes/teste_background.png)
+
+*Figura 3 — Resultado do teste de seleção e movimentação do plano de fundo.*
+
+![Resultado de um teste de criação e movimentação de sprites](docs/figuras/testes/teste_sprites.png)
+
+*Figura 4 — Resultado do teste de configuração e movimentação de sprites.*
+
+![Resultado de um teste de definição e movimentação de polígonos](docs/figuras/testes/teste_poligonos.png)
+
+*Figura 5 — Resultado do teste de configuração e movimentação de polígonos.*
+
+![Resultado de uma cena gráfica integrada](docs/figuras/testes/cena_integrada.png)
+
+*Figura 6 — Execução de uma cena com diferentes recursos gráficos integrados.*
 
 
 
