@@ -34,9 +34,9 @@ void asm_load_reg(
 );
 ```
 
-O ponteiro `mmio` identifica a região de endereços utilizada para acessar o periférico; `reg_dest` indica o registrador de destino do coprocessador; e `valor` corresponde ao dado a ser armazenado. O tipo `uint32_t` representa um inteiro sem sinal de 32 bits.
+O ponteiro `mmio` identifica a região de endereços utilizada para acessar o coprocessador endereçado; `reg_dest` indica o registrador de destino do coprocessador; e `valor` corresponde ao dado a ser armazenado. O tipo `uint32_t` representa um inteiro sem sinal de 32 bits.
 
-O cabeçalho não contém a implementação das instruções. Essa responsabilidade pertence ao arquivo `gpu_driver.S`, que disponibiliza as funções declaradas para uso pela aplicação.
+Esse arquivo .h não contém a implementação das instruções, pois é de responsabilidade do arquivo `gpu_driver.S`, definido em Assembly ARM que disponibiliza as funções declaradas para uso da aplicação.
 
 #### 1.2. Programa em C
 
@@ -63,9 +63,9 @@ No programa em C, a região é acessada por meio de `open()` e `mmap()`. A const
 
 O arquivo `gpu_driver.S` implementa as funções declaradas em `gpu_isa.h`. Cada função recebe os argumentos da operação, utiliza instruções ARM para posicionar os campos definidos pela ISA e monta a palavra binária de 32 bits correspondente ao comando.
 
-Operações como `AND`, `LSL` e `ORR` são utilizadas para mascarar, deslocar e combinar os campos da instrução. Ao final da montagem, a palavra completa fica disponível no registrador `R1` para ser enviada ao periférico. O registrador `R0` mantém o ponteiro `mmio`.
+Operações como `AND`, `LSL` e `ORR` são utilizadas para coletar, deslocar e combinar os campos da instrução. Ao final da montagem, a palavra completa fica disponível no registrador `R1` para ser enviada ao periférico. O registrador `R0` mantém o ponteiro `mmio`.
 
-O envio é centralizado na rotina `_send_fifo`, compartilhada pelas funções do driver:
+O envio da instrução binária final é feita no label `_send_fifo`, compartilhada pelas funções do driver:
 
 ```asm
 _send_fifo:
@@ -80,9 +80,9 @@ _send_fifo:
     BX LR
 ```
 
-A rotina consulta inicialmente o registrador de estado, acessado pelo deslocamento de quatro bytes em relação à base. A operação `AND` isola o bit menos significativo, que representa o indicador de fila cheia. Se o resultado for `1`, a instrução `BEQ 1b` retorna ao início do laço, repetindo a consulta. Quando a fila não está cheia, `STR R1, [R0, #0]` escreve a palavra de 32 bits no registrador destinado ao recebimento das instruções, e `BX LR` retorna à função que realizou a chamada.
+Essa função consulta inicialmente o registrador de estado, acessado pelo deslocamento de quatro bytes em relação à base. A operação `AND` isola o bit menos significativo, que representa o indicador de fila cheia. Se o resultado for `1`, a instrução `BEQ 1b` retorna ao início do laço, repetindo a consulta. Quando a fila não está cheia, `STR R1, [R0, #0]` escreve a palavra de 32 bits no registrador destinado ao recebimento das instruções, e `BX LR` retorna à função que realizou a chamada.
 
-Esse procedimento implementa uma espera ocupada (*busy-waiting*): o ARM aguarda a disponibilidade de espaço antes de realizar a escrita, evitando enviar novos comandos quando a fila está cheia.
+Esse procedimento implementa uma espera ocupada (*busy-waiting*), ou seja, o ARM aguarda a disponibilidade de espaço antes de realizar a escrita, evitando enviar novos comandos quando a fila está cheia.
 
 #### 2.2. Fluxo da instrução
 
@@ -92,7 +92,7 @@ O fluxo completo, desde a chamada da função em C até o armazenamento da instr
 
 *Figura 1 — Caminho da instrução desde a aplicação em C até a fila do coprocessador.*
 
-O fluxograma representa a participação do cabeçalho, do programa em C, do driver em Assembly ARM, da interface MMIO e da fila de instruções. Após o envio, a instrução permanece armazenada até ser solicitada pela Unidade de Busca, que a encaminha para o registrador de instrução e, posteriormente, para a Unidade de Controle.
+O fluxograma representa a participação do programa em C, do driver em Assembly ARM, da interface MMIO e da fila de instruções. Após o envio, a instrução permanece armazenada até ser solicitada pela Unidade de Busca, que a encaminha para o registrador de instrução e, posteriormente, para a Unidade de Controle.
 
 ### 3. Interface MMIO e fila de instruções
 
@@ -109,11 +109,11 @@ A interface recebe os sinais do barramento, identifica o registrador acessado e 
 
 Essa correspondência deve ser compatível com a configuração de endereçamento da interface no *Platform Designer*.
 
-Na operação de escrita, o módulo verifica se `avs_escrever` está ativo, se estava inativo no ciclo anterior e se `avs_endereco` corresponde a `00`. Quando as condições são satisfeitas, a instrução presente em `avs_instrucao` é armazenada em `coe_fila_instrucao`, e o sinal `coe_fila_escrever` é ativado por um ciclo de relógio. O registrador `avs_escrever_anterior` permite identificar a nova borda de subida do sinal de escrita.
+Na operação de escrita, o módulo verifica se `avs_escrever` está ativo, se estava inativo no ciclo anterior e se `avs_endereco` corresponde a `00`. Quando as condições são satisfeitas, a instrução presente em `avs_instrucao` é armazenada em `coe_fila_instrucao`, e o sinal `coe_fila_escrever` é ativado por um ciclo de clock. O registrador `avs_escrever_anterior` permite identificar a nova borda de subida do sinal de escrita.
 
-Na operação de leitura, quando `avs_ler` está ativo e o endereço local corresponde a `01`, a interface retorna o estado de `coe_fila_cheia` no bit menos significativo de `avs_SinalFila`, mantendo os outros bits em zero. Essa informação é utilizada pelo driver para determinar quando pode enviar uma nova instrução.
+Na operação de leitura, quando `avs_ler` está ativo e o endereço local corresponde a `01`, a interface retorna o estado de `coe_fila_cheia` no bit menos significativo de `avs_SinalFila`, mantendo os outros bits em zero. Essa informação é utilizada pelo driver em Assembly ARM para determinar quando pode enviar uma nova instrução.
 
-Portanto, a interface não realiza a interpretação do comando gráfico nem armazena uma sequência de instruções. Sua função é transformar as operações de acesso ao periférico em sinais adequados à comunicação com a FIFO e disponibilizar o estado da fila ao ARM.
+Portanto, a interface não realiza a interpretação do comando gráfico nem armazena uma sequência de instruções. Sua função é transformar as operações de acesso ao periférico do coprocessador em sinais adequados à comunicação com a FIFO e disponibilizar o estado da fila ao ARM.
 
 #### 3.2. Módulo `fila_fifo`
 
@@ -121,11 +121,11 @@ A FIFO (*First-In, First-Out*) armazena temporariamente as instruções recebida
 
 O armazenamento é implementado por um vetor `fila`, enquanto os registradores `ponteiro_escrever` e `ponteiro_ler` controlam as posições de entrada e saída. Ambos possuem quatro bits, permitindo endereçar as posições de 0 a 15. Ao avançarem além da última posição, retornam naturalmente a zero, formando uma estrutura circular. O registrador `quantidade`, de cinco bits, contabiliza os elementos armazenados e permite identificar os estados de fila cheia e vazia.
 
-A escrita ocorre quando `fila_escrever` está ativo e `fila_cheia` está inativo. A instrução fornecida em `arm_instrucao` é armazenada na posição indicada por `ponteiro_escrever`, que avança após a operação. A leitura ocorre quando `unidade_ler` está ativo e `fila_vazia` está inativo; nesse caso, o ponteiro de leitura avança para a próxima posição.
+A escrita ocorre quando `fila_escrever` está ativo e `fila_cheia` está inativo. A instrução fornecida em `arm_instrucao` é armazenada na posição indicada por `ponteiro_escrever`, que avança após a operação. A leitura ocorre quando `unidade_ler` está ativo e `fila_vazia` está inativo. Nesse caso, o ponteiro de leitura avança para a próxima posição.
 
-A saída `instrucao_saida` é combinacional e acompanha diretamente a posição indicada por `ponteiro_ler`, característica do modo *first-word fall-through*. Dessa forma, a instrução localizada na cabeça da fila já está disponível na saída, sem depender de uma operação de leitura para que seu valor seja apresentado.
+A saída `instrucao_saida` é combinacional e acompanha diretamente a posição indicada por `ponteiro_ler`. Dessa forma, a instrução localizada no começo da fila já está disponível na saída, sem depender de uma operação de leitura para que seu valor seja apresentado.
 
-Os sinais `fila_cheia` e `fila_vazia` são derivados de `quantidade`: a fila está cheia quando contém 16 instruções e vazia quando não contém nenhuma. Em condições normais, se uma leitura e uma escrita forem solicitadas simultaneamente, com a fila nem cheia nem vazia, os dois ponteiros avançam e a quantidade permanece constante, pois uma instrução entra enquanto outra é consumida.
+Os sinais `fila_cheia` e `fila_vazia` são derivados de `quantidade`: a fila está cheia quando contém 16 instruções e vazia quando não contém nenhuma. Em condições normais, se uma leitura e uma escrita forem solicitadas simultaneamente, com a fila nem cheia nem vazia, os dois ponteiros avançam e a quantidade permanece constante, pois uma instrução entra enquanto outra é lida.
 
 A escrita é controlada pela interface MMIO, enquanto a leitura é solicitada pela Unidade de Busca por meio de `valid_leitura_fifo`, conectado ao sinal `unidade_ler` da fila. Essa separação permite que o ARM envie comandos sem controlar diretamente o instante em que o coprocessador os processa.
 
