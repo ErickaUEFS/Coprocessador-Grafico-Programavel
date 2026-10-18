@@ -578,6 +578,18 @@ Além dos testes individuais, foram executados programas que combinam diferentes
 
 *Figura 9 — Resultado do teste de definição e movimentação de polígonos.*
 
+#### 4.4. Cena com várias instruções executadas
+
+![Simulação da cena com todas as instruções](https://raw.githubusercontent.com/ErickaUEFS/Coprocessador-Grafico-Programavel/main/docs/testes/cena_instrucoes_diversas.gif)
+
+*Figura 10 — Resultado do teste de cena com diversas instruções ao mesmo tempo.*
+
 Os testes de integração complementam a verificação individual das instruções ao demonstrar sua utilização em sequência. Em conjunto, as evidências abrangem a comunicação com o coprocessador, a seleção e movimentação dos planos de fundo e a configuração e movimentação dos elementos gráficos na saída VGA.
 
+
+## Conclusão
+
+Os resultados obtidos demonstraram o funcionamento do coprocessador gráfico e a separação entre o envio das instruções e sua execução pelas unidades gráficas. A comunicação com o ARM, realizada pelo *driver* em Assembly, pela interface MMIO e pela FIFO, constitui um caminho distinto dos motores responsáveis pelo processamento gráfico. Essa organização modular permite desenvolver, testar e ampliar os recursos gráficos sem acoplar sua implementação aos detalhes do envio das instruções, mantendo a integração por meio da ISA definida para o coprocessador.
+
+Os testes de integração verificaram o envio e a leitura de instruções, enquanto os testes práticos demonstraram a seleção e movimentação de diferentes planos de fundo, a criação, configuração e movimentação de *sprites*, a renderização e movimentação de polígonos, a configuração de cores e o uso da sincronização vertical na saída VGA. Dessa forma, o projeto aplicou conceitos de arquitetura de computadores, comunicação entre processador e periféricos, Verilog, Assembly e integração entre *hardware* e *software*. Como melhorias futuras, destacam-se a ampliação da cobertura dos testes, a verificação de casos de concorrência na FIFO e a inclusão de novos recursos gráficos.
 
