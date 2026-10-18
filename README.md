@@ -496,61 +496,88 @@ Além disso, o tratamento de reset contribui para a previsibilidade do comportam
 
 ## Testes e Resultados
 
-A validação do coprocessador foi organizada em dois testes diferentes: simulação funcional da comunicação entre a interface MMIO e a FIFO, e testes práticos das instruções gráficas por meio de programas em C executados no sistema ARM da placa DE1-SoC. A primeira etapa permitiu observar a transferência e o consumo das instruções, enquanto a segunda avaliou os efeitos dos comandos na saída VGA e cena final executada.
+A validação do coprocessador foi organizada em duas etapas principais: a simulação funcional da comunicação entre a interface MMIO e a FIFO e os testes práticos das instruções gráficas por meio de programas em C executados no sistema ARM da placa DE1-SoC. A primeira etapa permitiu observar o envio e o consumo das instruções, enquanto a segunda avaliou seus efeitos na saída VGA, incluindo a seleção de planos de fundo, a movimentação de *sprites* e a renderização de polígonos.
 
 ### 1. Simulação de integração entre MMIO e FIFO
 
-A simulação foi realizada com o *testbench* `tb_integracao`, utilizando um clock de 50 MHz e duração total de 360 ns. O cenário inicial aplica o sinal de reset, após o qual são enviadas três palavras de 32 bits por meio dos sinais `avs_instrucao` e `avs_escrever`, com o endereço local `00` selecionado.
+A simulação foi realizada com o *testbench* `tb_integracao`, utilizando um *clock* de 50 MHz e duração total de 360 ns. O cenário aplica o sinal de *reset* e, em seguida, envia palavras de 32 bits por meio dos sinais `avs_instrucao` e `avs_escrever`, com o endereço local `00` selecionado.
 
-Em seguida, são gerados dois pulsos em `unidade_ler`, simulando solicitações de consumo de instruções. Durante a simulação, foram observadas as transições dos indicadores da fila e o comportamento da saída `instrucao_saida`.
+Posteriormente, são realizadas solicitações de leitura por meio de `unidade_ler`. Durante a simulação, são observados os indicadores de estado da FIFO e o comportamento da saída `instrucao_saida`, permitindo acompanhar a entrada e o consumo das instruções.
 
-O resultado registrado demonstra a entrada das instruções na FIFO e o avanço do ponteiro de leitura conforme as solicitações são atendidas. A saída acompanha a instrução localizada na posição indicada pelo ponteiro, permitindo observar a sequência dos comandos recebidos.
+![Simulação da saída de instruções e da FIFO](https://raw.githubusercontent.com/ErickaUEFS/Coprocessador-Grafico-Programavel/main/docs/testes/testes_saidainstrucao.jpeg)
 
-A simulação documentada verifica, portanto, o caminho de escrita das instruções e seu consumo pela FIFO. O cenário apresentado não cobre o preenchimento das 16 posições, a leitura do registrador de estado pela MMIO nem todas as condições de concorrência entre escrita e leitura.
+*Figura 2 — Formas de onda da comunicação entre a interface MMIO e a FIFO durante as operações de escrita e leitura.*
 
-**Evidência da simulação:**
-
-![Simulação de integração entre interface MMIO e FIFO](docs/figuras/testes/testes_saidainstrucao.png)
-
-*Figura 2 — Formas de onda da interface MMIO e da FIFO durante as operações de escrita e leitura.*
+A captura utiliza os nomes de sinais registrados naquela simulação. Na versão final da interface, os sinais de escrita e dados encaminhados à FIFO correspondem a `coe_fila_escrever` e `coe_fila_instrucao`, enquanto o estado de fila cheia é indicado por `coe_fila_cheia`.
 
 ### 2. Testes funcionais das instruções gráficas
 
-Os testes funcionais foram realizados por programas em C que utilizam as funções declaradas em `gpu_isa.h` e implementadas em `gpu_driver.S`. O driver monta as instruções da ISA de 32 bits e as envia pela MMIO, consultando o estado da fila antes de cada escrita.
+Os testes funcionais foram realizados por programas em C que utilizam as funções declaradas em `gpu_isa.h` e implementadas em `gpu_driver.S`. O *driver* monta as instruções da ISA de 32 bits e as envia pela MMIO, consultando o estado da FIFO antes de cada escrita.
 
-Os testes foram divididos entre chamadas individuais das instruções e cenas que combinam diferentes recursos gráficos.
+Os testes individuais foram organizados conforme a função gráfica avaliada.
 
-| Teste | Procedimento | Resultado observado |
+| **Teste** | **Procedimento** | **Resultado observado** |
 |---|---|---|
-| Seleção e movimentação do plano de fundo | Execução de `BG_TILE` e chamadas sucessivas de `BG_MOVER` nas quatro direções. | Verificação da seleção do plano de fundo e da alteração de seu posicionamento. |
-| Criação e configuração de *sprites* | Criação de 32 *sprites*, com testes de espelhamento horizontal e vertical e alteração da visibilidade. | Verificação da configuração dos elementos e dos atributos enviados à unidade funcional. |
-| Movimentação de *sprites* | Execução de `SPR_MOVER` em diferentes direções. | Verificação do deslocamento dos elementos na tela. |
-| Definição e movimentação de polígonos | Criação de retângulos e triângulos, alteração de cor e execução de `POLI_MOVER`. | Verificação da representação das figuras e da resposta aos comandos de movimentação. |
-| Configuração da paleta | Chamadas de `PALE_DEFINIR` para programar cores utilizadas nas cenas. | Verificação visual das cores configuradas nos elementos gráficos. |
-| Sincronização vertical | Chamadas de `ESPERA_VSYNC` antes de sequências de movimentação. | Verificação da utilização da instrução de sincronização durante os testes de animação. |
+| Seleção do plano de fundo | Execução de `BG_TILE` com diferentes índices. | Seleção de planos de fundo distintos na saída VGA. |
+| Movimentação do plano de fundo | Execução de `BG_MOVER` em diferentes direções. | Verificação da alteração da posição do plano de fundo. |
+| Criação e configuração de *sprites* | Criação de *sprites*, com testes de visibilidade e espelhamento horizontal e vertical. | Verificação da configuração e da representação dos elementos na tela. |
+| Movimentação de *sprites* | Execução de `SPR_MOVER` em diferentes direções. | Verificação do deslocamento dos elementos gráficos. |
+| Definição e movimentação de polígonos | Criação de retângulos e triângulos, alteração de parâmetros e execução de `POLI_MOVER`. | Verificação da renderização e do deslocamento das figuras. |
+| Configuração da paleta | Execução de `PALE_DEFINIR` para programar cores. | Verificação visual das cores utilizadas nos elementos gráficos. |
+| Sincronização vertical | Execução de `ESPERA_VSYNC` antes de sequências de movimentação. | Verificação da utilização da sincronização vertical nos testes de animação. |
 
-### 3. Testes de integração das cenas gráficas
+### 3. Resultados da seleção de planos de fundo por índice
 
-Além dos testes individuais, foram executados programas que combinam diferentes instruções para gerar cenas animadas. Esses cenários exercitam a sequência de comandos enviada pelo ARM e a atuação sincronizada dos módulos do coprocessador.
+A instrução `BG_TILE` permite selecionar o plano de fundo por meio de um índice. Para demonstrar essa funcionalidade, são apresentados separadamente os três resultados registrados. Cada imagem corresponde a uma saída visual diferente, permitindo comparar os planos de fundo selecionados.
 
-Esses testes combinam operações de criação, movimentação, alteração de cores e seleção do plano de fundo. A execução de múltiplos comandos em sequência permite observar a integração entre o programa em C, o driver ARM, a interface MMIO, a FIFO, a Unidade de Busca, a Unidade de Controle e os motores gráficos.
+#### 3.1. Plano de fundo — seleção 01
 
+![Resultado da seleção do plano de fundo tile01](https://raw.githubusercontent.com/ErickaUEFS/Coprocessador-Grafico-Programavel/main/docs/figuras/tile01.jpeg)
 
-![Resultado de um teste de movimentação do plano de fundo](docs/figuras/testes/simulacao_teste_background_mover.gif)
+*Figura 3 — Saída VGA correspondente ao plano de fundo registrado em `tile01.jpeg`.*
 
-*Figura 3 — Resultado do teste de seleção e movimentação do plano de fundo.*
+#### 3.2. Plano de fundo — seleção 02
 
-![Resultado de um teste de criação e movimentação de sprites](docs/figuras/testes/teste_sprites.png)
+![Resultado da seleção do plano de fundo tile02](https://raw.githubusercontent.com/ErickaUEFS/Coprocessador-Grafico-Programavel/main/docs/figuras/tile02.jpeg)
 
-*Figura 4 — Resultado do teste de configuração e movimentação de sprites.*
+*Figura 4 — Saída VGA correspondente ao plano de fundo registrado em `tile02.jpeg`.*
 
-![Resultado de um teste de definição e movimentação de polígonos](docs/figuras/testes/teste_poligonos.png)
+#### 3.3. Plano de fundo — seleção 03
 
-*Figura 5 — Resultado do teste de configuração e movimentação de polígonos.*
+![Resultado da seleção do plano de fundo tile03](https://raw.githubusercontent.com/ErickaUEFS/Coprocessador-Grafico-Programavel/main/docs/figuras/tile03.jpeg)
 
-![Resultado de uma cena gráfica integrada](docs/figuras/testes/cena_integrada.png)
+*Figura 5 — Saída VGA correspondente ao plano de fundo registrado em `tile03.jpeg`.*
 
-*Figura 6 — Execução de uma cena com diferentes recursos gráficos integrados.*
+Os resultados mostram que a seleção do índice altera o plano de fundo exibido. A identificação numérica definitiva de cada seleção deve corresponder ao valor passado ao parâmetro `indice` nas chamadas de `asm_bg_tile`.
 
+#### 3.4. Movimentação do plano de fundo
+
+![Simulação da movimentação do plano de fundo](https://raw.githubusercontent.com/ErickaUEFS/Coprocessador-Grafico-Programavel/main/docs/testes/simulacao_teste_background_mover.gif)
+
+*Figura 6 — Teste da movimentação do plano de fundo por meio da instrução `BG_MOVER`.*
+
+### 4. Testes de integração das cenas gráficas
+
+Além dos testes individuais, foram executados programas que combinam diferentes instruções para produzir cenas gráficas e animações. Esses cenários aplicam a sequência de comandos enviada pelo ARM e a atuação conjunta das unidades funcionais do coprocessador.
+
+#### 4.1. Movimentação de *sprites*
+
+![Simulação da movimentação de sprites](https://raw.githubusercontent.com/ErickaUEFS/Coprocessador-Grafico-Programavel/main/docs/testes/simulacao_sprite_mover.gif)
+
+*Figura 7 — Resultado do teste de movimentação de *sprites*.*
+
+#### 4.2. Cena com *sprites*
+
+![Simulação de cena com sprites](https://raw.githubusercontent.com/ErickaUEFS/Coprocessador-Grafico-Programavel/main/docs/testes/simulacao_cena_sprites.gif)
+
+*Figura 8 — Cena gráfica com múltiplos *sprites*.*
+
+#### 4.3. Movimentação de polígonos
+
+![Simulação da movimentação de polígonos](https://raw.githubusercontent.com/ErickaUEFS/Coprocessador-Grafico-Programavel/main/docs/testes/simulacao_poligono_mover.gif)
+
+*Figura 9 — Resultado do teste de definição e movimentação de polígonos.*
+
+Os testes de integração complementam a verificação individual das instruções ao demonstrar sua utilização em sequência. Em conjunto, as evidências abrangem a comunicação com o coprocessador, a seleção e movimentação dos planos de fundo e a configuração e movimentação dos elementos gráficos na saída VGA.
 
 
