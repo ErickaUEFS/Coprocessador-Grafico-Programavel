@@ -3,6 +3,57 @@
 ### MI de Sistemas Digitais (TEC499) - TP03
 
 ---
+## Sumário
+
+- [Introdução](#introdução)
+- [Pré-requisitos](#pré-requisitos)
+- [Como instalar?](#como-instalar)
+  - [Gravação do hardware na FPGA](#gravação-do-hardware-na-fpga)
+  - [Execução do driver e dos programas no Linux da placa](#execução-do-driver-e-dos-programas-no-linux-da-placa)
+- [Requisitos do problema](#requisitos-do-problema)
+  - [Requisitos funcionais](#requisitos-funcionais)
+- [Recursos utilizados](#recursos-utilizados)
+- [Metodologia](#metodologia)
+  - [ISA e interface de software](#isa-e-interface-de-software)
+    - [Arquivo `gpu_isa.h`](#arquivo-gpu_isah)
+    - [Programa em C](#programa-em-c)
+  - [Caminho da instrução até a FIFO](#caminho-da-instrução-até-a-fifo)
+    - [Codificação em Assembly ARM](#codificação-em-assembly-arm)
+    - [Fluxo da instrução](#fluxo-da-instrução)
+  - [Interface MMIO e fila de instruções](#interface-mmio-e-fila-de-instruções)
+    - [Módulo `interface_mmio`](#módulo-interface_mmio)
+    - [Módulo `fila_fifo`](#módulo-fila_fifo)
+    - [Integração da comunicação](#integração-da-comunicação)
+  - [Unidade de Busca](#unidade-de-busca)
+  - [Unidade de Controle](#unidade-de-controle)
+    - [Decodificação e distribuição dos parâmetros](#decodificação-e-distribuição-dos-parâmetros)
+    - [Máquina de Estados Finitos](#máquina-de-estados-finitos)
+    - [Comunicação e sinais de controle](#comunicação-e-sinais-de-controle)
+  - [Banco de Registradores](#banco-de-registradores)
+    - [Organização e funcionamento](#organização-e-funcionamento)
+    - [Utilização pelas instruções gráficas](#utilização-pelas-instruções-gráficas)
+    - [Papel na arquitetura](#papel-na-arquitetura)
+  - [Adaptações dos Motores Gráficos](#adaptações-dos-motores-gráficos)
+    - [Padronização da comunicação](#padronização-da-comunicação)
+    - [Adaptações no controle interno](#adaptações-no-controle-interno)
+    - [Motor de Sprites](#motor-de-sprites)
+    - [Motor de Background](#motor-de-background)
+    - [Motor Rasterizador](#motor-rasterizador)
+    - [Tratamento de reset](#tratamento-de-reset)
+- [Testes e Resultados](#testes-e-resultados)
+  - [Simulação de integração entre MMIO e FIFO](#simulação-de-integração-entre-mmio-e-fifo)
+  - [Testes funcionais das instruções gráficas](#testes-funcionais-das-instruções-gráficas)
+  - [Resultados da seleção de planos de fundo por índice](#resultados-da-seleção-de-planos-de-fundo-por-índice)
+    - [Plano de fundo: seleção 01](#plano-de-fundo-seleção-01)
+    - [Plano de fundo: seleção 02](#plano-de-fundo-seleção-02)
+    - [Plano de fundo: seleção 03](#plano-de-fundo-seleção-03)
+    - [Movimentação do plano de fundo](#movimentação-do-plano-de-fundo)
+  - [Testes de integração das cenas gráficas](#testes-de-integração-das-cenas-gráficas)
+    - [Movimentação de sprites](#movimentação-de-sprites)
+    - [Cena com sprites](#cena-com-sprites)
+    - [Movimentação de polígonos](#movimentação-de-polígonos)
+    - [Cena com várias instruções executadas](#cena-com-várias-instruções-executadas)
+- [Conclusão](#conclusão)
 
 ## Introdução
 
@@ -119,7 +170,7 @@ Para o desenvolvimento deste coprocessador, a arquitetura foi planejada com foco
 Esta seção acompanha o caminho percorrido por uma instrução, do software até a imagem exibida no monitor, e está organizada na seguinte ordem: (1) **Instruções**, com o formato e o conjunto de instruções da ISA; (2) **Caminho da Instrução até a Fila**, que descreve o trajeto do programa em C até a entrada da fila, passando pelo driver em Assembly ARM e pela interface MMIO; (3) **Fila de Instruções**, que armazena os comandos enviados pelo processador; (4) **Unidade de Busca**, que retira as instruções da fila e as entrega ao registrador de instrução; (5) **Unidade de Controle**, que decodifica as instruções e coordena a execução; (6) **Motores gráficos**, que executam as operações de plano de fundo, sprites e polígonos e compõem a imagem final; (7) **Simulação**, com os testes e a validação do projeto; e (8) **Referências**, com as fontes consultadas.
 
 
-### 1. ISA e interface de software
+### ISA e interface de software
 
 A arquitetura utiliza uma *Instruction Set Architecture* (ISA) de 32 bits para controlar as operações gráficas do coprocessador. Cada instrução possui um código de operação (*opcode*) nos bits `[31:27]`, enquanto os 27 bits restantes contêm os parâmetros específicos de cada comando. Foram definidas nove instruções, responsáveis pela configuração e movimentação de elementos gráficos, manipulação da paleta e sincronização com a VGA.
 
@@ -137,7 +188,7 @@ A arquitetura utiliza uma *Instruction Set Architecture* (ISA) de 32 bits para c
 
 A definição da ISA estabelece o formato binário dos comandos e permite que a Unidade de Controle identifique a operação solicitada a partir do *opcode*, interpretando os demais campos de acordo com o tipo de instrução.
 
-#### 1.1. Arquivo `gpu_isa.h`
+#### Arquivo `gpu_isa.h`
 
 O arquivo `gpu_isa.h` declara as funções disponíveis para os programas em C. Seus protótipos definem os nomes, os tipos e a ordem dos argumentos esperados, permitindo que a aplicação utilize as instruções sem implementar diretamente a codificação binária.
 
@@ -155,7 +206,7 @@ O ponteiro `mmio` identifica a região de endereços utilizada para acessar o co
 
 Esse arquivo .h não contém a implementação das instruções, pois é de responsabilidade do arquivo `gpu_driver.S`, definido em Assembly ARM que disponibiliza as funções declaradas para uso da aplicação.
 
-#### 1.2. Programa em C
+#### Programa em C
 
 O programa em C define a sequência de comandos que compõe cada cena gráfica e fornece os parâmetros necessários às operações. As chamadas das funções declaradas em `gpu_isa.h` permitem configurar registradores, cores, sprites, plano de fundo e polígonos, além de solicitar a sincronização com a VGA.
 
@@ -170,13 +221,13 @@ Nesse exemplo, a primeira chamada armazena as coordenadas empacotadas no registr
 
 Dessa forma, o C define a operação desejada e seus parâmetros, enquanto o driver em Assembly ARM realiza a codificação e o envio das instruções ao hardware.
 
-### 2. Caminho da instrução até a FIFO
+### Caminho da instrução até a FIFO
 
 O envio das instruções utiliza o mecanismo de entrada e saída mapeadas em memória (*Memory-Mapped Input/Output* — MMIO). Essa abordagem permite que o processador ARM acesse registradores do periférico por meio de operações de leitura e escrita em endereços de memória.
 
 No programa em C, a região é acessada por meio de `open()` e `mmap()`. A constante `MMIO_BASE`, definida como `0xFF200000`, representa o endereço físico utilizado pelo programa, que deve corresponder ao mapeamento configurado para o periférico no *Platform Designer*. O resultado de `mmap()` é convertido em um ponteiro `volatile uint32_t *`, utilizado nas chamadas do driver para acessar a região mapeada.
 
-#### 2.1. Codificação em Assembly ARM
+#### Codificação em Assembly ARM
 
 O arquivo `gpu_driver.S` implementa as funções declaradas em `gpu_isa.h`. Cada função recebe os argumentos da operação, utiliza instruções ARM para posicionar os campos definidos pela ISA e monta a palavra binária de 32 bits correspondente ao comando.
 
@@ -201,7 +252,7 @@ Essa função consulta inicialmente o registrador de estado, acessado pelo deslo
 
 Esse procedimento implementa uma espera ocupada (*busy-waiting*), ou seja, o ARM aguarda a disponibilidade de espaço antes de realizar a escrita, evitando enviar novos comandos quando a fila está cheia.
 
-#### 2.2. Fluxo da instrução
+#### Fluxo da instrução
 
 O fluxo completo, desde a chamada da função em C até o armazenamento da instrução na FIFO, é apresentado na Figura 1.
 
@@ -211,11 +262,11 @@ O fluxo completo, desde a chamada da função em C até o armazenamento da instr
 
 O fluxograma representa a participação do programa em C, do driver em Assembly ARM, da interface MMIO e da fila de instruções. Após o envio, a instrução permanece armazenada até ser solicitada pela Unidade de Busca, que a encaminha para o registrador de instrução e, posteriormente, para a Unidade de Controle.
 
-### 3. Interface MMIO e fila de instruções
+### Interface MMIO e fila de instruções
 
 A comunicação entre o processador ARM e a fila exigiu uma interface dedicada porque as operações realizadas pelo barramento Avalon-MM não correspondem diretamente aos sinais necessários para controlar a FIFO. O barramento transporta endereço, dados e sinais de leitura ou escrita; a fila, por sua vez, necessita de um sinal de escrita, de uma palavra de 32 bits e de um sinal de leitura. A `interface_mmio` realiza essa adaptação, decodificando os acessos do ARM e convertendo-os em sinais utilizados pela fila.
 
-#### 3.1. Módulo `interface_mmio`
+#### Módulo `interface_mmio`
 
 A interface recebe os sinais do barramento, identifica o registrador acessado e encaminha as informações de acordo com a operação solicitada. No projeto, foram definidos dois endereços locais para a comunicação:
 
@@ -232,7 +283,7 @@ Na operação de leitura, quando `avs_ler` está ativo e o endereço local corre
 
 Portanto, a interface não realiza a interpretação do comando gráfico nem armazena uma sequência de instruções. Sua função é transformar as operações de acesso ao periférico do coprocessador em sinais adequados à comunicação com a FIFO e disponibilizar o estado da fila ao ARM.
 
-#### 3.2. Módulo `fila_fifo`
+#### Módulo `fila_fifo`
 
 A FIFO (*First-In, First-Out*) armazena temporariamente as instruções recebidas do ARM, mantendo a ordem de chegada dos comandos até que sejam consumidos pela Unidade de Busca. Sua capacidade padrão é de 16 posições, cada uma com largura de 32 bits.
 
@@ -246,13 +297,13 @@ Os sinais `fila_cheia` e `fila_vazia` são derivados de `quantidade`: a fila est
 
 A escrita é controlada pela interface MMIO, enquanto a leitura é solicitada pela Unidade de Busca por meio de `valid_leitura_fifo`, conectado ao sinal `unidade_ler` da fila. Essa separação permite que o ARM envie comandos sem controlar diretamente o instante em que o coprocessador os processa.
 
-#### 3.3. Integração da comunicação
+#### Integração da comunicação
 
 A integração entre o driver, a interface MMIO e a FIFO estabelece o caminho de transferência das instruções entre o processador ARM e o coprocessador gráfico. O driver verifica o estado da fila antes de escrever, a interface converte a operação de barramento em um pulso de escrita e a FIFO armazena a palavra recebida. No sentido da leitura, a Unidade de Busca solicita a instrução disponível e a FIFO avança seu ponteiro, disponibilizando o próximo comando.
 
 Essa organização separa as responsabilidades do software, da interface de comunicação e do armazenamento temporário. Assim, o programa em C não precisa conhecer os ponteiros ou a estrutura interna da fila, enquanto a Unidade de Busca obtém as instruções na ordem em que foram enviadas. A instrução disponibilizada é armazenada no registrador de instrução e entregue à Unidade de Controle para decodificação e execução da operação correspondente.
 
-### 4. Unidade de Busca
+### Unidade de Busca
 
 A unidade de busca é responsável por trazer, uma a uma, as instruções armazenadas na fila para dentro do coprocessador. O módulo `unidade_de_busca.v` implementa a estratégia de **busca passiva**: em vez de varrer uma memória de programa interna com um contador de programa (PC), ele consome as instruções que o processador ARM enfileirou por meio da interface MMIO. Dessa forma, o programa gráfico não fica gravado na FPGA, e o ARM pode alterá-lo a qualquer momento apenas enviando novas instruções à fila.
 
@@ -268,7 +319,7 @@ Os sinais `valid_leitura_fifo` e `instrucao_valida` são pulsos de um único cic
 
 Ao receber o pulso `instrucao_valida`, o Registrador de Instrução (`registrador_de_instrucao.v`) armazena a instrução em `IR`, mantendo-a estável para que a unidade de controle decodifique o opcode e distribua os campos aos motores gráficos. Um sinal de reset zera a máquina de estados e todas as saídas, de modo que o coprocessador sempre inicie sem buscas pendentes.
 
-### 5. Unidade de Controle
+### Unidade de Controle
 
 A Unidade de Controle (UC) é responsável por coordenar a execução das instruções do coprocessador gráfico. Após a Unidade de Busca disponibilizar uma nova instrução no Registrador de Instrução (`IR`), cabe à UC interpretar seus campos, selecionar os recursos necessários e controlar a execução da operação correspondente.
 
@@ -290,7 +341,7 @@ Essa organização permite que a interpretação da instrução seja centralizad
 
 Na implementação combinacional, as saídas recebem valores padrão antes da seleção dos campos de cada instrução. Essa prática evita a inferência de *latches* indesejados durante a síntese do circuito.
 
-#### 5.2. Máquina de Estados Finitos
+#### Máquina de Estados Finitos
 
 O sequenciamento das instruções é realizado por uma Máquina de Estados Finitos (MEF), implementada em lógica sequencial sincronizada pela borda de subida do clock.
 
@@ -317,7 +368,7 @@ Existem também operações que não dependem da confirmação de um motor:
 
 Caso seja identificado um opcode não reconhecido, a máquina retorna ao estado `MONITORAR`, sem acionar os motores gráficos.
 
-#### 5.3. Comunicação e sinais de controle
+#### Comunicação e sinais de controle
 
 A comunicação entre a UC e os demais módulos é realizada por sinais de controle e barramentos de parâmetros.
 
@@ -340,7 +391,7 @@ O módulo também possui uma entrada de reset, responsável por inicializar a m�
 
 Dessa forma, a UC concentra o sequenciamento das instruções e a coordenação das unidades funcionais, mantendo separadas as responsabilidades de controle e processamento gráfico.
 
-### 6. Banco de Registradores
+### Banco de Registradores
 
 O Banco de Registradores foi implementado para armazenar operandos utilizados pelas instruções gráficas, especialmente coordenadas e valores de cor.
 
@@ -348,7 +399,7 @@ O módulo possui **oito registradores de 24 bits**, endereçados de `R0` a `R7`.
 
 Essa estrutura possibilita armazenar parâmetros antes de sua utilização, evitando a necessidade de incluí-los integralmente em todas as instruções.
 
-#### 6.1. Organização e funcionamento
+#### Organização e funcionamento
 
 O banco apresenta as seguintes características:
 
@@ -365,7 +416,7 @@ A escrita ocorre por meio da instrução `LOAD_REG`. Durante sua execução, a U
 
 As portas de leitura recebem os endereços selecionados pela UC e disponibilizam os valores armazenados nos registradores correspondentes.
 
-#### 6.2. Utilização pelas instruções gráficas
+#### Utilização pelas instruções gráficas
 
 O Banco de Registradores é utilizado principalmente nas operações de configuração de sprites e polígonos.
 
@@ -382,7 +433,7 @@ O registrador de coordenadas é selecionado pelo campo `IR[26:24]`, enquanto o r
 
 O valor da cor é obtido dos oito bits menos significativos do registrador selecionado.
 
-#### 6.3. Papel na arquitetura
+#### Papel na arquitetura
 
 A utilização do Banco de Registradores permite separar o armazenamento dos parâmetros de sua aplicação nas operações gráficas.
 
@@ -390,7 +441,7 @@ Uma coordenada pode ser carregada previamente e posteriormente utilizada por uma
 
 Além de facilitar o reaproveitamento dos dados, essa estrutura contribui para a organização do datapath e permite que as instruções mantenham o tamanho fixo de 32 bits definido pela ISA.
 
-### 7. Adaptações dos Motores Gráficos
+### Adaptações dos Motores Gráficos
 
 Os motores gráficos de background, sprites e rasterização foram adaptados para funcionar como unidades funcionais controladas pela Unidade de Controle.
 
@@ -398,7 +449,7 @@ Na organização anterior, esses módulos executavam suas funcionalidades a part
 
 As principais modificações envolveram a padronização dos sinais de comunicação, a organização do controle interno, a atualização dos registradores de configuração e a implementação do tratamento de reset.
 
-#### 7.1. Padronização da comunicação
+#### Padronização da comunicação
 
 Para permitir a integração com a UC, os motores passaram a utilizar uma interface de controle baseada nos sinais `valid`, `busy` e `done`.
 
@@ -418,7 +469,7 @@ O processo de comunicação ocorre da seguinte forma:
 
 A utilização dessa interface padronizada permite que diferentes motores sejam controlados por um mesmo mecanismo de sequenciamento, independentemente de suas funcionalidades internas.
 
-#### 7.2. Adaptações no controle interno
+#### Adaptações no controle interno
 
 As alterações também envolveram a organização das operações por meio de Máquinas de Estados Finitos.
 
@@ -430,7 +481,7 @@ Os sinais `busy` e `done` permitem representar essas condições externamente, e
 
 Também foi necessário adequar as entradas dos módulos para receber diretamente os parâmetros fornecidos pela decodificação da UC.
 
-#### 7.3. Motor de Sprites
+#### Motor de Sprites
 
 O motor de sprites é responsável pela configuração e movimentação dos elementos gráficos móveis da cena.
 
@@ -451,7 +502,7 @@ Já a instrução `SPR_MOVER` recebe o índice do sprite e a direção do desloc
 
 As adaptações permitem que os atributos de cada sprite sejam mantidos e atualizados internamente pelo motor, enquanto a UC fica responsável apenas por enviar os comandos e acompanhar sua conclusão.
 
-#### 7.4. Motor de Background
+#### Motor de Background
 
 O motor de background é responsável pela seleção e movimentação dos cenários representados por tilemaps.
 
@@ -463,7 +514,7 @@ A instrução `BG_MOVER` permite realizar o deslocamento do cenário de acordo c
 
 Com essa integração, a configuração e o movimento do background passam a ocorrer como resultado da execução das instruções, sem a necessidade de controle direto do módulo pelo software.
 
-#### 7.5. Motor Rasterizador
+#### Motor Rasterizador
 
 O motor rasterizador é responsável pela configuração e movimentação de figuras geométricas, incluindo retângulos e triângulos.
 
@@ -484,7 +535,7 @@ Na instrução `POLI_MOVER`, são fornecidos o índice do polígono e a direçã
 
 Com essas alterações, o rasterizador passa a receber comandos de configuração e movimentação pela interface padronizada do coprocessador, mantendo internamente as informações necessárias para a representação das figuras.
 
-#### 7.6. Tratamento de reset
+#### Tratamento de reset
 
 Outra modificação realizada foi a implementação do tratamento de reset nos motores gráficos.
 
