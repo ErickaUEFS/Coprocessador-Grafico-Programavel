@@ -510,7 +510,7 @@ A simulação documentada verifica, portanto, o caminho de escrita das instruç�
 
 **Evidência da simulação:**
 
-![Simulação de integração entre interface MMIO e FIFO](docs/figuras/testes/tb_integracao.png)
+![Simulação de integração entre interface MMIO e FIFO](docs/figuras/testes/testes_saidainstrucao.png)
 
 *Figura 2 — Formas de onda da interface MMIO e da FIFO durante as operações de escrita e leitura.*
 
